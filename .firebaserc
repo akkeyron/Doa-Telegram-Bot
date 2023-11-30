@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "doa-harian-c2a0f",
+    "staging": "doa-harian-c2a0f"
+  },
+  "targets": {},
+  "etags": {}
+}
