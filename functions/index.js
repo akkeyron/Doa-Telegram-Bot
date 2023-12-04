@@ -157,7 +157,8 @@ bot.hears(/\/bacaan(\d+)/, (ctx) => {
                 ctx.replyWithHTML(
                     Output,
                     Markup.inlineKeyboard([
-                        Markup.button.callback('Rumi', `Recordrumi${record.id}`)
+                        Markup.button.callback('Rumi', `Recordrumi${record.id}`),
+                        (record.rujukan === "" ? Markup.button.callback('dummy', 'dummy', true) : Markup.button.callback('Hadis', `Hadis_${record.id}`))
                     ]),
                 );
             } else {
@@ -196,7 +197,8 @@ bot.action(/Record([a-z]+)(\d+)/, async (ctx) => {
                         parse_mode: 'HTML',
                         reply_markup: {
                             inline_keyboard: [
-                                [command === 'arab' ? { text: "Rumi", callback_data: `Recordrumi${record.id}` } : { text: "Arab", callback_data: `Recordarab${record.id}` }]
+                                [command === 'arab' ? { text: "Rumi", callback_data: `Recordrumi${record.id}` } : { text: "Arab", callback_data: `Recordarab${record.id}` },
+                                (record.rujukan === "" ? Markup.button.callback('dummy', 'dummy', true) : Markup.button.callback('Hadis', `Hadis_${record.id}`))]
                             ]
                         }
                     }
@@ -214,6 +216,46 @@ bot.action(/Record([a-z]+)(\d+)/, async (ctx) => {
 // feedback command
 bot.command('feedback', async (ctx) => {
     setFeedback(bot, ctx, admin);
+})
+
+// Hadis command
+bot.action(/Hadis_(\d+)/, async (ctx) => {
+    const id = ctx.match[1];
+
+    fetch(GITHUB)
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                ctx.reply(`${response.status}`);
+                functions.logger.error(response.status);
+                throw new Error(`Failed to fetch JSON data from GitHub. Status: ${response.status}`);
+            }
+        })
+        .then(async data => {
+            // Handle the JSON data here
+            const record = data.find((r) => r.id === parseInt(id));
+            if (record) {
+                const Output = record.rujukan;
+                await ctx.editMessageText(Output,
+                    {
+                        parse_mode: 'HTML',
+                        reply_markup: {
+                            inline_keyboard: [
+                                [{ text: "📖 Rujuk Hadis", url: `${record.link}` }],
+                                [{ text: "◀️ Kembali", callback_data: `Recordarab${record.id}` }]
+                            ]
+                        }
+                    }
+                );
+            } else {
+                ctx.reply('Maaf, doa tak jumpa.');
+            }
+        })
+        .catch(error => {
+            functions.logger.error(error);
+            ctx.reply("Ada error berlaku dalam system");
+        });
 })
 
 // respond user query with doa that suitable
@@ -268,8 +310,8 @@ bot.catch(error => {
 
 // Set up the Firebase Function for Telegram updates
 export const botWebhook = functions
-.region("asia-southeast1")
-.https.onRequest(async (req, res) => {
-    functions.logger.log(req.body.message);
-    return await bot.handleUpdate(req.body, res);
-})
+    .region("asia-southeast1")
+    .https.onRequest(async (req, res) => {
+        functions.logger.log(req.body.message);
+        return await bot.handleUpdate(req.body, res);
+    })
